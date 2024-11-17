@@ -1,4 +1,6 @@
 '''# Everline API Module
+용인 에버라인 실시간 열차 정보 API 모듈.<br>
+Github: https://github.com/suzukaotto/everline_api.git
 '''
 
 import requests
@@ -43,12 +45,12 @@ STATION_CODE = {
     "Y123": "둔전",
     "Y124": "전대·에버랜드"
 }
-STATION_CODE_UPWARD   = ["Y124", "Y123", "Y122", "Y121", "Y120", "Y119", "Y118", "Y117", "Y116", "Y115", "Y114", "Y113", "Y112", "Y111", "Y110"]
-STATION_CODE_DOWNWARD = ["Y110", "Y111", "Y112", "Y113", "Y114", "Y115", "Y116", "Y117", "Y118", "Y119", "Y120", "Y121", "Y122", "Y123", "Y124"]
+STATION_CODE_UPWARD   = ["Y124", "Y123", "Y122", "Y121", "Y120", "Y119", "Y118", "Y117", "Y116", "Y115", "Y114", "Y113", "Y112", "Y111", "Y110"] # 상행선 역 코드
+STATION_CODE_DOWNWARD = ["Y110", "Y111", "Y112", "Y113", "Y114", "Y115", "Y116", "Y117", "Y118", "Y119", "Y120", "Y121", "Y122", "Y123", "Y124"] # 하행선 역 코드
 
 # Station Duration Time
-STATION_DURATION_DOWN = [ 89, 74, 78, 83, 121, 147, 79, 77, 64, 71, 102, 110, 77, 179 ]; # 하행선 각 역 사이의 소요 시간
 STATION_DURATION_UP = [ 96, 82, 77, 86, 122, 172, 79, 75, 62, 70, 76, 124, 85, 184 ];    # 상행선 각 역 사이의 소요 시간
+STATION_DURATION_DOWN = [ 89, 74, 78, 83, 121, 147, 79, 77, 64, 71, 102, 110, 77, 179 ]; # 하행선 각 역 사이의 소요 시간
 
 # updownCode 
 TRAIN_UPWARD   = "1" # 상행
@@ -78,15 +80,15 @@ TRAIN_INTERVALS = {
         {"start": 2100, "end": 2359, "interval": 10},
     ],
 }
-def get_train_interval(current_time, is_weekend=False):
+def get_train_interval(_current_time, _is_weekend=False):
     """
     current_time: 현재 시간 (HHMM 형식, 예: 1543)
     is_weekend: 주말 여부 (True면 주말/공휴일, False면 평일)
     """
-    schedule = TRAIN_INTERVALS["Weekend"] if is_weekend else TRAIN_INTERVALS["Weekday"]
+    schedule = TRAIN_INTERVALS["Weekend"] if _is_weekend else TRAIN_INTERVALS["Weekday"]
     
-    current_time = int(current_time)
-    current_minutes = (current_time // 100) * 60 + (current_time % 100)
+    _current_time = int(_current_time)
+    current_minutes = (_current_time // 100) * 60 + (_current_time % 100)
     
     for time_range in schedule:
         start_minutes = (time_range["start"] // 100) * 60 + (time_range["start"] % 100)
@@ -96,6 +98,11 @@ def get_train_interval(current_time, is_weekend=False):
             return time_range["interval"]
     
     return None
+
+def cal_percent(_part, _whole, _round=2):
+    if _whole == 0:
+        return 0
+    return round(((_part / _whole) * 100), _round)
 
 class EverlineAPI:
     '''# Everline API Class
@@ -160,11 +167,22 @@ class EverlineAPI:
             return None
 
         # Add driving completion rate, (0~100%)
-        for train_info in train_infos:
+        for index, train_info in enumerate(train_infos):
+            ## Train Info Parsing
             train_updown = train_info["updownCode"]
             train_time = int(train_info["time"])
             train_status = train_info["StatusCode"]
             train_stcode = train_info["StCode"]
-            print(train_updown, train_time, train_status, train_stcode, STATION_CODE[train_stcode])
+            train_destcode = train_info["DestCode"]
+            if train_updown == TRAIN_UPWARD:
+                train_now_stindex = STATION_CODE_UPWARD.index(train_stcode)
+                train_duration = STATION_DURATION_UP[train_now_stindex] if train_stcode != train_destcode else 0
+            else:
+                train_now_stindex = STATION_CODE_DOWNWARD.index(train_stcode)
+                train_duration = STATION_DURATION_DOWN[train_now_stindex] if train_stcode != train_destcode else 0
+            
+            ## Train driving completion rate
+            train_rate = cal_percent(train_time, train_duration)
+            print(f"{train_updown} {train_destcode} {train_status} {train_stcode} {STATION_CODE[train_stcode]} {train_time} {train_duration} {train_rate}")
 
         return train_infos
