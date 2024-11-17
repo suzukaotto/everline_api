@@ -183,6 +183,8 @@ class EverlineAPI:
             
             ## Train driving completion rate
             train_rate = cal_percent(train_time, train_duration)
-            print(f"{train_updown} {train_destcode} {train_status} {train_stcode} {STATION_CODE[train_stcode]} {train_time} {train_duration} {train_rate}")
+            
+            ## Info insert
+            train_infos[index]["driveRate"] = train_rate
 
         return train_infos
