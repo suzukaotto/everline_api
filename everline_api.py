@@ -99,10 +99,13 @@ def get_train_interval(_current_time, _is_weekend=False):
     
     return None
 
-def cal_percent(_part, _whole, _round=2):
+def cal_percent(_part, _whole, _round=2, _max=100):
     if _whole == 0:
         return 0
-    return round(((_part / _whole) * 100), _round)
+    cal_val = round(((_part / _whole) * 100), _round)
+    if cal_val > _max:
+        return _max
+    return cal_val
 
 class EverlineAPI:
     '''# Everline API Class
