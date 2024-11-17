@@ -1,3 +1,6 @@
+'''# Everline API Module
+'''
+
 import requests
 import datetime
 import time
@@ -56,39 +59,112 @@ TRAIN_RETURN = "1" # 열차 회송
 TRAIN_STOP   = "2" # 열차 정차
 TRAIN_START  = "3" # 열차 출발
 
+# Train Intervals
+TRAIN_INTERVALS = {
+    "Weekday": [
+        {"start": 0,    "end": 459,  "interval": None},
+        {"start": 530,  "end": 659,  "interval": 10},
+        {"start": 700,  "end": 859,  "interval": 3},
+        {"start": 900,  "end": 1659, "interval": 6},
+        {"start": 1700, "end": 1959, "interval": 4},
+        {"start": 2000, "end": 2059, "interval": 6},
+        {"start": 2100, "end": 2159, "interval": 6},
+        {"start": 2200, "end": 2359, "interval": 10},
+    ],
+    "Weekend": [
+        {"start": 0,    "end": 459,  "interval": None},
+        {"start": 530,  "end": 659,  "interval": 10},
+        {"start": 700,  "end": 2059, "interval": 6},
+        {"start": 2100, "end": 2359, "interval": 10},
+    ],
+}
+def get_train_interval(current_time, is_weekend=False):
+    """
+    current_time: 현재 시간 (HHMM 형식, 예: 1543)
+    is_weekend: 주말 여부 (True면 주말/공휴일, False면 평일)
+    """
+    schedule = TRAIN_INTERVALS["Weekend"] if is_weekend else TRAIN_INTERVALS["Weekday"]
+    
+    current_time = int(current_time)
+    current_minutes = (current_time // 100) * 60 + (current_time % 100)
+    
+    for time_range in schedule:
+        start_minutes = (time_range["start"] // 100) * 60 + (time_range["start"] % 100)
+        end_minutes = (time_range["end"] // 100) * 60 + (time_range["end"] % 100) + 1
+        
+        if start_minutes <= current_minutes < end_minutes:
+            return time_range["interval"]
+    
+    return None
+
 class EverlineAPI:
+    '''# Everline API Class
+    ## Methods'''
     def __init__(self, req_url="https://everlinecu.com/api/api009.json"):
         self.req_url = req_url
         self.data = None
         self.last_update = None
         self.auto_update_thread = None
-        
+        self.auto_update_enabled = True
+
     def get_data(self, _time_out=3):
         response = requests.get(self.req_url, timeout=_time_out)
         if response.status_code == 200:
             self.data = response.json()
             self.last_update = datetime.datetime.now()
             return True
-        
-        print(f"Failed to get data: {response.status_code}")
+
         return False
-        
+
     def auto_update(self, _interval=1):
-        if self.auto_update_thread != None:
+        """Start auto update thread"""
+        if self.auto_update_thread is not None:
             return False
+
         def update():
             while True:
+                if not self.auto_update_enabled:
+                    self.auto_update_thread = None
+                    break
+
                 self.get_data()
                 print(f"Data updated at {self.last_update}")
                 time.sleep(_interval)
+
+        self.auto_update_enabled = True
         self.auto_update_thread = threading.Thread(target=update, daemon=True)
         self.auto_update_thread.start()
         return True
-        
-if __name__ == "__main__":
-    api = EverlineAPI()
-    api.auto_update()
-    print("API started")
-    time.sleep(10)
-    print(api.data)
+
+    def stop_auto_update(self):
+        if self.auto_update_thread is None:
+            return False
+        self.auto_update_enabled = None
+        return True
     
+    def get_train_count(self) -> int:
+        if self.data == None:
+            return None
+        
+        train_count = self.data.get("data", None)
+        if train_count == None:
+            return None
+        return len(train_count)
+    
+    def get_train_info(self) -> list:
+        if self.data == None:
+            return None
+        
+        train_infos = self.data.get("data", None)
+        if train_infos == None:
+            return None
+
+        # Add driving completion rate, (0~100%)
+        for train_info in train_infos:
+            train_updown = train_info["updownCode"]
+            train_time = int(train_info["time"])
+            train_status = train_info["StatusCode"]
+            train_stcode = train_info["StCode"]
+            print(train_updown, train_time, train_status, train_stcode, STATION_CODE[train_stcode])
+
+        return train_infos
