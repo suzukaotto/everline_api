@@ -136,9 +136,13 @@ class EverlineAPI:
                 if not self.auto_update_enabled:
                     self.auto_update_thread = None
                     break
-
-                self.get_data()
-                print(f"Data updated at {self.last_update}")
+                
+                # Update data. If failed, retry.
+                try:
+                    self.get_data()
+                except:
+                    continue
+                
                 time.sleep(_interval)
 
         self.auto_update_enabled = True
